@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from dpabistat.smoothness import estimate_smoothness, SmoothnessResult
+from grouvox.smoothness import estimate_smoothness, SmoothnessResult
 
 
 class TestEstimateSmoothness:

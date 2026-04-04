@@ -4,7 +4,7 @@ import pytest
 from click.testing import CliRunner
 from pathlib import Path
 
-from dpabistat.cli import main
+from grouvox.cli import main
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ import nibabel as nib
 import pytest
 from pathlib import Path
 
-from dpabistat.io import load_images, load_mask, save_nifti
+from grouvox.io import load_images, load_mask, save_nifti
 
 
 class TestLoadImages:

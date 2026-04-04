@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 
-from dpabistat.glm import ols_fit, compute_contrast
-from dpabistat.io import load_images, load_mask, save_nifti
-from dpabistat.smoothness import estimate_smoothness
+from grouvox.glm import ols_fit, compute_contrast
+from grouvox.io import load_images, load_mask, save_nifti
+from grouvox.smoothness import estimate_smoothness
 
 
 class _HeaderProxy:
@@ -141,7 +141,7 @@ def two_sample_ttest(
 
     header = header.copy()
     header["descrip"] = (
-        f"DPABIStat{{T_[{result.dof:.1f}]}}"
+        f"GrouVox{{T_[{result.dof:.1f}]}}"
         f"{{dLh_{smooth.dlh:.6f}}}"
         f"{{FWHMx_{smooth.fwhm[0]:.4f} "
         f"FWHMy_{smooth.fwhm[1]:.4f} "

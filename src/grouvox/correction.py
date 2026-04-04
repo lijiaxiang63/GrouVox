@@ -11,7 +11,7 @@ import numpy as np
 from scipy import ndimage, stats
 from scipy.special import gamma
 
-from dpabistat.io import load_mask, save_nifti
+from grouvox.io import load_mask, save_nifti
 
 
 @dataclass
@@ -34,7 +34,7 @@ class GRFResult:
 
 
 _HEADER_RE = re.compile(
-    r"DPABIStat\{T_\[([0-9.]+)\]\}"
+    r"GrouVox\{T_\[([0-9.]+)\]\}"
     r"\{dLh_([0-9.eE+-]+)\}"
     r"\{FWHMx_([0-9.]+)\s+FWHMy_([0-9.]+)\s+FWHMz_([0-9.]+)\s+mm\}"
 )
@@ -49,7 +49,7 @@ def _parse_header_meta(header: nib.Nifti1Header) -> dict:
     m = _HEADER_RE.search(str(descrip))
     if not m:
         raise ValueError(
-            f"Cannot parse DPABIStat metadata from header description: {descrip!r}. "
+            f"Cannot parse GrouVox metadata from header description: {descrip!r}. "
             "Run two_sample_ttest first to generate a compatible T-map."
         )
     return {

@@ -3,17 +3,17 @@ import nibabel as nib
 import pytest
 from pathlib import Path
 
-from dpabistat.correction import fdr_correction, grf_correction, FDRResult, GRFResult
+from grouvox.correction import fdr_correction, grf_correction, FDRResult, GRFResult
 
 
 def _make_stat_nifti(data, tmp_path, filename="stat_T.nii.gz", dof=14, dlh=0.01,
                      fwhm=(8.0, 8.0, 8.0)):
-    """Helper: create a T-stat NIfTI with DPABI-style header metadata."""
+    """Helper: create a T-stat NIfTI with GrouVox-style header metadata."""
     affine = np.diag([2.0, 2.0, 2.0, 1.0])
     header = nib.Nifti1Header()
     header.set_data_dtype(np.float32)
     header["descrip"] = (
-        f"DPABIStat{{T_[{dof:.1f}]}}{{dLh_{dlh:.6f}}}"
+        f"GrouVox{{T_[{dof:.1f}]}}{{dLh_{dlh:.6f}}}"
         f"{{FWHMx_{fwhm[0]:.4f} FWHMy_{fwhm[1]:.4f} FWHMz_{fwhm[2]:.4f} mm}}"
     )[:80]
     img = nib.Nifti1Image(data.astype(np.float32), affine, header)

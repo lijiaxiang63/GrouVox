@@ -5,7 +5,7 @@ import pytest
 from pathlib import Path
 from scipy import stats
 
-from dpabistat.ttest import two_sample_ttest, TTestResult
+from grouvox.ttest import two_sample_ttest, TTestResult
 
 
 class TestTwoSampleTTest:
@@ -46,7 +46,7 @@ class TestTwoSampleTTest:
         result = two_sample_ttest(g1_dir, g2_dir, output, mask=mask_path)
 
         descrip = result.header["descrip"].astype(str)
-        assert "DPABIStat{T_" in descrip
+        assert "GrouVox{T_" in descrip
         assert "dLh_" in descrip
         assert "FWHM" in descrip
 

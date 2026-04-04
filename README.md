@@ -1,15 +1,15 @@
-# DPABIStat
+# GrouVox
 
 Voxel-wise group-level statistical analysis for neuroimaging data.
 
-DPABIStat performs two-sample t-tests on NIfTI brain images with optional covariates (age, sex, etc.), outputs T-statistic maps, and applies multiple comparison correction using Gaussian Random Field (GRF) theory or False Discovery Rate (FDR).
+GrouVox performs two-sample t-tests on NIfTI brain images with optional covariates (age, sex, etc.), outputs T-statistic maps, and applies multiple comparison correction using Gaussian Random Field (GRF) theory or False Discovery Rate (FDR).
 
 ## Installation
 
 ```bash
 # From source
-git clone <repo-url>
-cd DPABIStat
+git clone https://github.com/lijiaxiang63/GrouVox
+cd GrouVox
 uv sync
 ```
 
@@ -18,10 +18,10 @@ uv sync
 ### Python API
 
 ```python
-import dpabistat
+import grouvox
 
 # Two-sample t-test
-result = dpabistat.two_sample_ttest(
+result = grouvox.two_sample_ttest(
     group1="data/patients/",
     group2="data/controls/",
     output="results/group_comparison",
@@ -33,7 +33,7 @@ result = dpabistat.two_sample_ttest(
 print(f"DOF: {result.dof}, FWHM: {result.fwhm}")
 
 # GRF cluster-level correction
-grf_result = dpabistat.grf_correction(
+grf_result = grouvox.grf_correction(
     "results/group_comparison_T.nii.gz",
     mask_path="brain_mask.nii.gz",
     voxel_p=0.001,
@@ -45,7 +45,7 @@ for c in grf_result.cluster_table:
     print(f"  Cluster {c['label']}: {c['size']} voxels, peak Z={c['peak_value']:.2f}")
 
 # FDR correction
-fdr_result = dpabistat.fdr_correction(
+fdr_result = grouvox.fdr_correction(
     "results/group_comparison_T.nii.gz",
     mask_path="brain_mask.nii.gz",
     q=0.05,
@@ -59,7 +59,7 @@ print(f"Significant voxels: {fdr_result.n_significant}")
 
 ```bash
 # Two-sample t-test
-dpabistat ttest2 \
+grouvox ttest2 \
     --group1 data/patients/ \
     --group2 data/controls/ \
     --output results/group_comparison \
@@ -68,7 +68,7 @@ dpabistat ttest2 \
     --contrast 1 -1
 
 # GRF correction
-dpabistat correct \
+grouvox correct \
     --input results/group_comparison_T.nii.gz \
     --method grf \
     --voxel-p 0.001 \
@@ -76,7 +76,7 @@ dpabistat correct \
     --mask brain_mask.nii.gz
 
 # FDR correction
-dpabistat correct \
+grouvox correct \
     --input results/group_comparison_T.nii.gz \
     --method fdr \
     --q 0.05 \

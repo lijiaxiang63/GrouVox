@@ -1,4 +1,4 @@
-"""Command-line interface for DPABIStat."""
+"""Command-line interface for GrouVox."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import click
 
 @click.group()
 def main():
-    """DPABIStat: Voxel-wise group-level statistical analysis for neuroimaging."""
+    """GrouVox: Voxel-wise group-level statistical analysis for neuroimaging."""
 
 
 @main.command()
@@ -27,7 +27,7 @@ def main():
               help="Contrast for group terms, e.g., --contrast 1 -1.")
 def ttest2(group1, group2, output, mask, covariates, contrast):
     """Run a two-sample t-test with optional covariates."""
-    from dpabistat.ttest import two_sample_ttest
+    from grouvox.ttest import two_sample_ttest
 
     contrast_list = list(contrast) if contrast else None
 
@@ -62,7 +62,7 @@ def ttest2(group1, group2, output, mask, covariates, contrast):
               help="Two-tailed test (default) or one-tailed.")
 def correct(input_path, method, mask, voxel_p, cluster_p, q_value, two_tailed):
     """Apply multiple comparison correction to a T-statistic map."""
-    from dpabistat.correction import grf_correction, fdr_correction
+    from grouvox.correction import grf_correction, fdr_correction
 
     if method == "grf":
         result = grf_correction(

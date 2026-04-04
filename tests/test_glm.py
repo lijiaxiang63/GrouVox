@@ -2,7 +2,7 @@ import numpy as np
 from scipy import stats
 import pytest
 
-from dpabistat.glm import ols_fit, compute_contrast, OLSResult
+from grouvox.glm import ols_fit, compute_contrast, OLSResult
 
 
 class TestOLSFit:

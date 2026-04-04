@@ -65,9 +65,12 @@ def estimate_smoothness(
     fwhm = np.zeros(3)
 
     for i in range(3):
-        rho = ss_minus[i] / ss_total[i] if ss_total[i] > 0 else 0.0
-        rho = np.clip(rho, 1e-15, 1.0 - 1e-15)
-        sigma_sq[i] = -1.0 / (4.0 * np.log(abs(rho)))
+        if ss_total[i] <= 0:
+            sigma_sq[i] = 1.0  # default for degenerate case
+        else:
+            rho = ss_minus[i] / ss_total[i]
+            rho = np.clip(rho, 1e-15, 1.0 - 1e-15)
+            sigma_sq[i] = -1.0 / (4.0 * np.log(abs(rho)))
         fwhm[i] = np.sqrt(8.0 * np.log(2.0) * sigma_sq[i]) * voxel_size[i]
 
     dlh = (sigma_sq[0] * sigma_sq[1] * sigma_sq[2]) ** (-0.5) / np.sqrt(8.0)

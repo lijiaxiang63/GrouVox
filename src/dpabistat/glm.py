@@ -42,10 +42,11 @@ def ols_fit(Y: np.ndarray, X: np.ndarray) -> OLSResult:
     residuals = Y - X @ beta
     sse = np.sum(residuals ** 2, axis=0)
 
-    mse = sse / dof
+    mse = np.where(sse > 0, sse / dof, 0.0)
     R_inv = linalg.solve_triangular(R, np.eye(p))
     var_beta_factor = np.sum(R_inv ** 2, axis=1)
-    t_values = beta / np.sqrt(var_beta_factor[:, np.newaxis] * mse[np.newaxis, :])
+    se = np.sqrt(var_beta_factor[:, np.newaxis] * mse[np.newaxis, :])
+    t_values = np.where(se > 0, beta / se, 0.0)
 
     return OLSResult(
         beta=beta,
@@ -81,6 +82,7 @@ def compute_contrast(
     XtX_inv = np.linalg.inv(X.T @ X)
     denom_factor = np.sqrt(c @ XtX_inv @ c)
 
-    std_e = np.sqrt(result.sse / result.dof)
-    t_contrast = c_beta / (std_e * denom_factor)
+    std_e = np.sqrt(np.where(result.sse > 0, result.sse / result.dof, 0.0))
+    denom = std_e * denom_factor
+    t_contrast = np.where(denom > 0, c_beta / denom, 0.0)
     return t_contrast

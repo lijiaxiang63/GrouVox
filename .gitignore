@@ -1,9 +1,10 @@
 __pycache__/
 *.pyc
-*.pyo
-.venv/
 *.egg-info/
 dist/
 build/
-.DS_Store
+.venv/
+*.nii
+*.nii.gz
+.pytest_cache/
 uv.lock

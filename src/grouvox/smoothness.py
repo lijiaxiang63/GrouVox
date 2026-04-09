@@ -85,6 +85,60 @@ def estimate_smoothness(
     )
 
 
+def estimate_smoothness_from_map(
+    stat_map: np.ndarray,
+    mask: np.ndarray,
+    voxel_size: np.ndarray,
+) -> SmoothnessResult:
+    """Estimate spatial smoothness from a 3D statistical map.
+
+    Used when residuals are not available (e.g. correcting a T/Z-map
+    produced outside GrouVox).  Matches the MATLAB ``y_Smoothest``
+    behaviour when called with a single-volume Z-map and empty DOF.
+
+    Parameters
+    ----------
+    stat_map : array, shape (X, Y, Z)
+    mask : boolean array, shape (X, Y, Z)
+    voxel_size : array, shape (3,)
+    """
+    n_voxels = int(mask.sum())
+
+    ss_minus = np.zeros(3)
+    ss_total = np.zeros(3)
+
+    for axis, slices in enumerate(_axis_neighbor_slices()):
+        fwd, bwd = slices
+        both_in_mask = mask[fwd] & mask[bwd]
+        a = stat_map[fwd][both_in_mask]
+        b = stat_map[bwd][both_in_mask]
+        ss_minus[axis] += np.dot(a, b)
+        ss_total[axis] += 0.5 * (np.dot(a, a) + np.dot(b, b))
+
+    sigma_sq = np.zeros(3)
+    fwhm = np.zeros(3)
+
+    for i in range(3):
+        if ss_total[i] <= 0:
+            sigma_sq[i] = 1.0
+        else:
+            rho = ss_minus[i] / ss_total[i]
+            rho = np.clip(rho, 1e-15, 1.0 - 1e-15)
+            sigma_sq[i] = -1.0 / (4.0 * np.log(abs(rho)))
+        fwhm[i] = np.sqrt(8.0 * np.log(2.0) * sigma_sq[i]) * voxel_size[i]
+
+    # No DOF scaling — the stat map already accounts for DOF.
+    dlh = (sigma_sq[0] * sigma_sq[1] * sigma_sq[2]) ** (-0.5) / np.sqrt(8.0)
+    resels = n_voxels * dlh
+
+    return SmoothnessResult(
+        fwhm=tuple(float(f) for f in fwhm),
+        dlh=float(dlh),
+        resels=float(resels),
+        n_voxels=n_voxels,
+    )
+
+
 def _axis_neighbor_slices():
     """Return forward/backward slice pairs for x, y, z neighbor differences."""
     x_fwd = (slice(1, None), slice(None), slice(None))

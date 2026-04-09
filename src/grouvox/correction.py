@@ -12,6 +12,7 @@ from scipy import ndimage, stats
 from scipy.special import gamma
 
 from grouvox.io import load_mask, save_nifti
+from grouvox.smoothness import estimate_smoothness_from_map
 
 
 @dataclass
@@ -40,7 +41,7 @@ _HEADER_RE = re.compile(
 )
 
 
-def _parse_header_meta(header: nib.Nifti1Header) -> dict:
+def _parse_header_meta(header: nib.Nifti1Header, raise_on_missing: bool = True) -> dict:
     """Extract DOF, dLh, FWHM from NIfTI header description."""
     descrip = header["descrip"].astype(str) if hasattr(header["descrip"], 'astype') else str(header["descrip"])
     # Handle bytes
@@ -48,10 +49,12 @@ def _parse_header_meta(header: nib.Nifti1Header) -> dict:
         descrip = descrip.decode("utf-8", errors="replace")
     m = _HEADER_RE.search(str(descrip))
     if not m:
-        raise ValueError(
-            f"Cannot parse GrouVox metadata from header description: {descrip!r}. "
-            "Run two_sample_ttest first to generate a compatible T-map."
-        )
+        if raise_on_missing:
+            raise ValueError(
+                f"Cannot parse GrouVox metadata from header description: {descrip!r}. "
+                "Run two_sample_ttest first to generate a compatible T-map."
+            )
+        return {}
     return {
         "dof": float(m.group(1)),
         "dlh": float(m.group(2)),
@@ -130,17 +133,30 @@ def grf_correction(
     voxel_p: float = 0.001,
     cluster_p: float = 0.05,
     two_tailed: bool = True,
+    reestimate: bool = False,
 ) -> GRFResult:
-    """Apply GRF cluster-level correction to a T-statistic map."""
+    """Apply GRF cluster-level correction to a T-statistic map.
+
+    Parameters
+    ----------
+    reestimate : bool
+        If True, re-estimate smoothness (dLh) from the Z-map even when
+        GrouVox header metadata is present.  When the header has no
+        metadata, smoothness is always estimated automatically.
+    """
     stat_path = Path(stat_path)
     img = nib.load(stat_path)
     t_data = img.get_fdata(dtype=np.float32)
     header = img.header
     affine = img.affine
 
-    meta = _parse_header_meta(header)
+    meta = _parse_header_meta(header, raise_on_missing=False)
+    if not meta:
+        raise ValueError(
+            "Cannot parse GrouVox metadata (DOF) from header description. "
+            "Run two_sample_ttest first to generate a compatible T-map."
+        )
     dof = meta["dof"]
-    dlh = meta["dlh"]
 
     mask = load_mask(mask_path)
     if mask is None:
@@ -150,12 +166,22 @@ def grf_correction(
     z_data = _t_to_z(t_data, dof)
     z_data = z_data * mask
 
+    if reestimate or "dlh" not in meta:
+        voxel_size = np.abs(np.diag(affine[:3, :3]))
+        smooth = estimate_smoothness_from_map(z_data, mask, voxel_size)
+        dlh = smooth.dlh
+    else:
+        dlh = meta["dlh"]
+
     if two_tailed:
         z_thr = stats.norm.ppf(1.0 - voxel_p / 2.0)
     else:
         z_thr = stats.norm.ppf(1.0 - voxel_p)
 
-    cluster_size_thr = _grf_cluster_threshold(n_voxels, dlh, z_thr, cluster_p, D=3)
+    # When two-tailed, each tail is corrected at cluster_p/2 so the
+    # combined false-positive rate across both tails equals cluster_p.
+    effective_cluster_p = cluster_p / 2.0 if two_tailed else cluster_p
+    cluster_size_thr = _grf_cluster_threshold(n_voxels, dlh, z_thr, effective_cluster_p, D=3)
 
     thresholded_z = np.zeros_like(z_data)
     thresholded_t = np.zeros_like(t_data)

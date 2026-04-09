@@ -38,6 +38,7 @@ grf_result = grouvox.grf_correction(
     mask_path="brain_mask.nii.gz",
     voxel_p=0.001,
     cluster_p=0.05,
+    reestimate=False,  # True to re-estimate smoothness from the Z-map
 )
 
 print(f"Cluster size threshold: {grf_result.cluster_size_threshold} voxels")
@@ -74,6 +75,15 @@ grouvox correct \
     --voxel-p 0.001 \
     --cluster-p 0.05 \
     --mask brain_mask.nii.gz
+
+# GRF correction with smoothness re-estimation from the Z-map
+grouvox correct \
+    --input results/group_comparison_T.nii.gz \
+    --method grf \
+    --voxel-p 0.001 \
+    --cluster-p 0.05 \
+    --mask brain_mask.nii.gz \
+    --reestimate
 
 # FDR correction
 grouvox correct \
@@ -137,9 +147,10 @@ X = [G1, G2, Cov1, Cov2, ...]
 Implements cluster-level inference based on Gaussian Random Field theory (Friston et al., 1994):
 
 1. Converts T-map to Z-map
-2. Applies voxel-level threshold
-3. Calculates cluster size threshold from expected Euler characteristic
-4. Removes clusters below threshold (26-connectivity)
+2. Estimates smoothness from the Z-map (if `--reestimate` is set or header metadata is missing), otherwise reads smoothness (dLh) from the NIfTI header
+3. Applies voxel-level threshold
+4. Calculates cluster size threshold from expected Euler characteristic (cluster_p is halved per tail in two-tailed mode)
+5. Removes clusters below threshold (26-connectivity)
 
 ### FDR Correction
 

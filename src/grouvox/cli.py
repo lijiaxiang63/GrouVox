@@ -60,7 +60,9 @@ def ttest2(group1, group2, output, mask, covariates, contrast):
               help="FDR q threshold (FDR only, default 0.05).")
 @click.option("--two-tailed/--one-tailed", default=True,
               help="Two-tailed test (default) or one-tailed.")
-def correct(input_path, method, mask, voxel_p, cluster_p, q_value, two_tailed):
+@click.option("--reestimate", is_flag=True, default=False,
+              help="Re-estimate smoothness from the Z-map instead of using header values (GRF only).")
+def correct(input_path, method, mask, voxel_p, cluster_p, q_value, two_tailed, reestimate):
     """Apply multiple comparison correction to a T-statistic map."""
     from grouvox.correction import grf_correction, fdr_correction
 
@@ -71,6 +73,7 @@ def correct(input_path, method, mask, voxel_p, cluster_p, q_value, two_tailed):
             voxel_p=voxel_p,
             cluster_p=cluster_p,
             two_tailed=two_tailed,
+            reestimate=reestimate,
         )
         click.echo(f"GRF correction applied:")
         click.echo(f"  Z threshold: {result.z_threshold:.4f}")

@@ -36,13 +36,13 @@ io.load_images → ttest.two_sample_ttest → correction.grf_correction / fdr_co
 - **`io.py`** — Load NIfTI images (3D files, 4D files, or directories) into 4D arrays; load masks; save NIfTI outputs. `_resolve_paths()` handles path normalization.
 - **`glm.py`** — Vectorized OLS via QR decomposition. `ols_fit(Y, X)` operates on `(n_subjects, n_voxels)` matrices. `compute_contrast()` computes T-statistics for arbitrary linear contrasts using `(X'X)^-1`.
 - **`ttest.py`** — Orchestrator. Builds cell-means design matrix `[G1, G2, covariates]`, calls GLM, computes Cohen's f², estimates smoothness, writes output NIfTIs. Encodes DOF/FWHM/dLh into the NIfTI `descrip` header field for downstream correction.
-- **`smoothness.py`** — Estimates residual smoothness (FWHM per axis, dLh) using lag-1 autocorrelation with DOF-dependent scaling correction.
-- **`correction.py`** — GRF cluster-level correction (T→Z conversion, Euler characteristic-based cluster threshold, 26-connectivity labeling) and FDR Benjamini-Hochberg. Both parse metadata from the `descrip` header field via `_HEADER_RE` regex.
+- **`smoothness.py`** — Estimates residual smoothness (FWHM per axis, dLh) using lag-1 autocorrelation with DOF-dependent scaling correction. `estimate_smoothness()` works on 4D residuals (used by `ttest.py`); `estimate_smoothness_from_map()` works on a 3D Z-map (used by `correction.py` when re-estimating).
+- **`correction.py`** — GRF cluster-level correction (T→Z conversion, Euler characteristic-based cluster threshold, 26-connectivity labeling) and FDR Benjamini-Hochberg. Parses metadata from the `descrip` header field via `_HEADER_RE` regex. GRF supports `reestimate=True` to re-estimate smoothness from the Z-map instead of using header values. In two-tailed mode, cluster_p is halved per tail to maintain the correct family-wise error rate.
 - **`cli.py`** — Click CLI with `ttest2` and `correct` subcommands. Lazy-imports analysis modules.
 
 ### Key Design Decisions
 
-- Statistical metadata (DOF, dLh, FWHM) is stored in the NIfTI header `descrip` field with a specific format parsed by `_HEADER_RE` in `correction.py`. This couples t-test output to correction input.
+- Statistical metadata (DOF, dLh, FWHM) is stored in the NIfTI header `descrip` field with a specific format parsed by `_HEADER_RE` in `correction.py`. This couples t-test output to correction input. When header metadata is present, smoothness values are used by default; `reestimate=True` overrides this to re-estimate from the Z-map.
 - Cell-means parameterization (not dummy coding): design matrix uses separate indicator columns for each group rather than intercept + group difference.
 - All voxel-wise operations work on masked flat arrays `(n_subjects, n_mask_voxels)` for memory efficiency; results are unmasked back to 3D via `_unmask()`.
 

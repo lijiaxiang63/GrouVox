@@ -167,7 +167,7 @@ def grf_correction(
     z_data = z_data * mask
 
     if reestimate or "dlh" not in meta:
-        voxel_size = np.abs(np.diag(affine[:3, :3]))
+        voxel_size = np.sqrt(np.sum(affine[:3, :3] ** 2, axis=0))
         smooth = estimate_smoothness_from_map(z_data, mask, voxel_size)
         dlh = smooth.dlh
     else:

@@ -43,7 +43,11 @@ grf_result = grouvox.grf_correction(
 
 print(f"Cluster size threshold: {grf_result.cluster_size_threshold} voxels")
 for c in grf_result.cluster_table:
-    print(f"  Cluster {c['label']}: {c['size']} voxels, peak Z={c['peak_value']:.2f}")
+    mni = c["peak_coords_mni"]
+    print(f"  Cluster {c['label']}: {c['size']} voxels, peak Z={c['peak_value']:.2f} at MNI ({mni[0]:.0f}, {mni[1]:.0f}, {mni[2]:.0f})")
+    for atlas, regions in c["atlas_regions"].items():
+        for r in regions:
+            print(f"    {atlas}: {r['pct']:.1f}% {r['name']}")
 
 # FDR correction
 fdr_result = grouvox.fdr_correction(
@@ -54,6 +58,10 @@ fdr_result = grouvox.fdr_correction(
 
 print(f"FDR p-threshold: {fdr_result.p_threshold:.6f}")
 print(f"Significant voxels: {fdr_result.n_significant}")
+print(f"Clusters: {fdr_result.n_clusters}")
+for c in fdr_result.cluster_table:
+    mni = c["peak_coords_mni"]
+    print(f"  Cluster {c['label']}: {c['size']} voxels at MNI ({mni[0]:.0f}, {mni[1]:.0f}, {mni[2]:.0f})")
 ```
 
 ### CLI
@@ -121,12 +129,14 @@ age,sex
 |------|-------------|
 | `Z_ClusterThresholded_{name}.nii.gz` | Thresholded Z-map |
 | `ClusterThresholded_{name}.nii.gz` | Thresholded original T-map |
+| `ClusterReport_{name}.csv` | Cluster table with atlas annotations |
 
 ### FDR correction outputs
 
 | File | Description |
 |------|-------------|
 | `FDR_Thresholded_{name}.nii.gz` | FDR-thresholded T-map |
+| `ClusterReport_{name}.csv` | Cluster table with atlas annotations |
 
 ## Statistical Methods
 
@@ -154,7 +164,20 @@ Implements cluster-level inference based on Gaussian Random Field theory (Fristo
 
 ### FDR Correction
 
-Implements the Benjamini-Hochberg procedure to control the false discovery rate.
+Implements the Benjamini-Hochberg procedure to control the false discovery rate. Surviving voxels are grouped into clusters via 26-connectivity labeling.
+
+### Atlas-Based Cluster Annotation
+
+Both GRF and FDR results annotate each surviving cluster using three bundled atlases:
+
+- **AAL** (Automated Anatomical Labeling)
+- **HarvardOxford-cortical**
+- **HarvardOxford-subcortical**
+
+Each cluster reports:
+- Peak voxel MNI coordinates and atlas label at the peak
+- Region overlap percentages (proportion of cluster voxels in each atlas region)
+- Results are written to a `ClusterReport` CSV file and printed by the CLI
 
 ## Development
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DPABIStat performs voxel-wise group-level statistical analysis on NIfTI neuroimaging data. It runs two-sample t-tests with optional covariates and applies multiple comparison correction (GRF cluster-level or FDR). Python package name: `grouvox`.
+GrouVox performs voxel-wise group-level statistical analysis on NIfTI neuroimaging data. It runs two-sample t-tests with optional covariates and applies multiple comparison correction (GRF cluster-level or FDR). Python package name: `grouvox`.
 
 ## Commands
 
@@ -37,8 +37,9 @@ io.load_images → ttest.two_sample_ttest → correction.grf_correction / fdr_co
 - **`glm.py`** — Vectorized OLS via QR decomposition. `ols_fit(Y, X)` operates on `(n_subjects, n_voxels)` matrices. `compute_contrast()` computes T-statistics for arbitrary linear contrasts using `(X'X)^-1`.
 - **`ttest.py`** — Orchestrator. Builds cell-means design matrix `[G1, G2, covariates]`, calls GLM, computes Cohen's f², estimates smoothness, writes output NIfTIs. Encodes DOF/FWHM/dLh into the NIfTI `descrip` header field for downstream correction.
 - **`smoothness.py`** — Estimates residual smoothness (FWHM per axis, dLh) using lag-1 autocorrelation with DOF-dependent scaling correction. `estimate_smoothness()` works on 4D residuals (used by `ttest.py`); `estimate_smoothness_from_map()` works on a 3D Z-map (used by `correction.py` when re-estimating).
-- **`correction.py`** — GRF cluster-level correction (T→Z conversion, Euler characteristic-based cluster threshold, 26-connectivity labeling) and FDR Benjamini-Hochberg. Parses metadata from the `descrip` header field via `_HEADER_RE` regex. GRF supports `reestimate=True` to re-estimate smoothness from the Z-map instead of using header values. In two-tailed mode, cluster_p is halved per tail to maintain the correct family-wise error rate.
-- **`cli.py`** — Click CLI with `ttest2` and `correct` subcommands. Lazy-imports analysis modules.
+- **`correction.py`** — GRF cluster-level correction (T→Z conversion, Euler characteristic-based cluster threshold, 26-connectivity labeling) and FDR Benjamini-Hochberg. Parses metadata from the `descrip` header field via `_HEADER_RE` regex. GRF supports `reestimate=True` to re-estimate smoothness from the Z-map instead of using header values. In two-tailed mode, cluster_p is halved per tail to maintain the correct family-wise error rate. Both methods annotate clusters with atlas-based region labels and write a ClusterReport CSV.
+- **`atlas.py`** — Loads bundled atlases (AAL, HarvardOxford-cortical, HarvardOxford-subcortical), resamples them to match the statistical map, and annotates clusters with peak MNI coordinates, peak atlas labels, and region overlap percentages. Atlas NIfTI and label JSON files are stored in `src/grouvox/atlases/`.
+- **`cli.py`** — Click CLI with `ttest2` and `correct` subcommands. Lazy-imports analysis modules. Prints atlas-annotated cluster tables for both GRF and FDR results.
 
 ### Key Design Decisions
 

@@ -60,6 +60,45 @@ class TestFDRCorrection:
         expected_out = tmp_path / "FDR_Thresholded_mystat_T.nii.gz"
         assert expected_out.exists()
 
+    def test_fdr_cluster_table(self, tmp_path):
+        shape = (20, 20, 20)
+        data = np.zeros(shape, dtype=np.float32)
+        data[8:12, 8:12, 8:12] = 6.0
+
+        stat_path = _make_stat_nifti(data, tmp_path, dof=28)
+        mask_path = _make_mask(shape, tmp_path)
+
+        result = fdr_correction(stat_path, mask_path, q=0.05)
+
+        assert hasattr(result, "n_clusters")
+        assert hasattr(result, "cluster_table")
+        assert result.n_clusters >= 1
+        cluster = result.cluster_table[0]
+        assert "label" in cluster
+        assert "size" in cluster
+        assert "peak_value" in cluster
+        assert "peak_coords" in cluster
+        assert "peak_coords_mni" in cluster
+        assert "peak_atlas" in cluster
+        assert "atlas_regions" in cluster
+
+    def test_fdr_csv_report(self, tmp_path):
+        import csv
+        shape = (20, 20, 20)
+        data = np.zeros(shape, dtype=np.float32)
+        data[8:12, 8:12, 8:12] = 6.0
+        stat_path = _make_stat_nifti(data, tmp_path, filename="mystat_T.nii.gz", dof=28)
+        mask_path = _make_mask(shape, tmp_path)
+        fdr_correction(stat_path, mask_path, q=0.05)
+        csv_path = tmp_path / "ClusterReport_FDR_mystat_T.csv"
+        assert csv_path.exists()
+        with open(csv_path) as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        assert len(rows) >= 1
+        assert "Cluster" in rows[0]
+        assert "AAL_Peak" in rows[0]
+
     def test_fdr_no_signal(self, tmp_path):
         rng = np.random.default_rng(42)
         shape = (15, 15, 15)
@@ -143,3 +182,35 @@ class TestGRFCorrection:
         assert "size" in cluster
         assert "peak_value" in cluster
         assert "peak_coords" in cluster
+
+    def test_grf_atlas_annotation(self, tmp_path):
+        shape = (30, 30, 30)
+        data = np.zeros(shape, dtype=np.float32)
+        data[10:20, 10:20, 10:20] = 5.0
+        stat_path = _make_stat_nifti(data, tmp_path, dof=28, dlh=0.005)
+        mask_path = _make_mask(shape, tmp_path)
+        result = grf_correction(stat_path, mask_path, voxel_p=0.001, cluster_p=0.05, two_tailed=False)
+        assert len(result.cluster_table) > 0
+        cluster = result.cluster_table[0]
+        assert "peak_coords_mni" in cluster
+        assert "peak_atlas" in cluster
+        assert "atlas_regions" in cluster
+        assert "AAL" in cluster["peak_atlas"]
+
+    def test_grf_csv_report(self, tmp_path):
+        import csv
+        shape = (30, 30, 30)
+        data = np.zeros(shape, dtype=np.float32)
+        data[10:20, 10:20, 10:20] = 5.0
+        stat_path = _make_stat_nifti(data, tmp_path, filename="mystat_T.nii.gz", dof=28, dlh=0.005)
+        mask_path = _make_mask(shape, tmp_path)
+        grf_correction(stat_path, mask_path, voxel_p=0.001, cluster_p=0.05, two_tailed=False)
+        csv_path = tmp_path / "ClusterReport_mystat_T.csv"
+        assert csv_path.exists()
+        with open(csv_path) as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        assert len(rows) >= 1
+        assert "Cluster" in rows[0]
+        assert "AAL_Peak" in rows[0]
+        assert "HO_Cort_Peak" in rows[0]

@@ -97,3 +97,33 @@ class TestCorrectCommand:
         ])
 
         assert result.exit_code == 0, result.output
+
+    def test_grf_prints_atlas(self, cli_runner, synthetic_two_groups, tmp_path):
+        g1_dir, g2_dir, mask_path = synthetic_two_groups
+        output = str(tmp_path / "res" / "ttest")
+        cli_runner.invoke(main, [
+            "ttest2", "--group1", str(g1_dir), "--group2", str(g2_dir),
+            "--output", output, "--mask", str(mask_path),
+        ])
+        stat_file = tmp_path / "res" / "ttest_T.nii.gz"
+        result = cli_runner.invoke(main, [
+            "correct", "--input", str(stat_file), "--method", "grf",
+            "--voxel-p", "0.001", "--cluster-p", "0.05", "--mask", str(mask_path),
+        ])
+        assert result.exit_code == 0, result.output
+        assert "MNI" in result.output
+
+    def test_fdr_prints_clusters(self, cli_runner, synthetic_two_groups, tmp_path):
+        g1_dir, g2_dir, mask_path = synthetic_two_groups
+        output = str(tmp_path / "res" / "ttest")
+        cli_runner.invoke(main, [
+            "ttest2", "--group1", str(g1_dir), "--group2", str(g2_dir),
+            "--output", output, "--mask", str(mask_path),
+        ])
+        stat_file = tmp_path / "res" / "ttest_T.nii.gz"
+        result = cli_runner.invoke(main, [
+            "correct", "--input", str(stat_file), "--method", "fdr",
+            "--q", "0.05", "--mask", str(mask_path),
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Clusters:" in result.output

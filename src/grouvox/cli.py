@@ -75,15 +75,26 @@ def correct(input_path, method, mask, voxel_p, cluster_p, q_value, two_tailed, r
             two_tailed=two_tailed,
             reestimate=reestimate,
         )
-        click.echo(f"GRF correction applied:")
+        click.echo("GRF correction applied:")
         click.echo(f"  Z threshold: {result.z_threshold:.4f}")
         click.echo(f"  Cluster size threshold: {result.cluster_size_threshold} voxels")
         click.echo(f"  Surviving clusters: {result.n_clusters}")
         for c in result.cluster_table:
+            mni = c.get("peak_coords_mni", c["peak_coords"])
             click.echo(
-                f"    Cluster {c['label']}: {c['size']} voxels, "
-                f"peak Z={c['peak_value']:.3f} at {c['peak_coords']}"
+                f"\n  Cluster {c['label']}: {c['size']} voxels, "
+                f"peak Z={c['peak_value']:.3f} at MNI ({mni[0]:.0f}, {mni[1]:.0f}, {mni[2]:.0f})"
             )
+            peak_atlas = c.get("peak_atlas", {})
+            peak_parts = [f"{k}: {v}" for k, v in peak_atlas.items() if v != "\u2014"]
+            if peak_parts:
+                click.echo(f"    Peak location:  {' | '.join(peak_parts)}")
+            for atlas_name, regions in c.get("atlas_regions", {}).items():
+                if regions:
+                    short = atlas_name.replace("HarvardOxford-", "HO-")
+                    click.echo(f"    {short}:")
+                    for r in regions:
+                        click.echo(f"       {r['pct']:5.1f}%  {r['name']} ({r['voxels']} voxels)")
     else:
         result = fdr_correction(
             stat_path=input_path,
@@ -94,3 +105,20 @@ def correct(input_path, method, mask, voxel_p, cluster_p, q_value, two_tailed, r
         click.echo(f"FDR correction applied (q={q_value}):")
         click.echo(f"  P threshold: {result.p_threshold:.6f}")
         click.echo(f"  Significant voxels: {result.n_significant}")
+        click.echo(f"  Clusters: {result.n_clusters}")
+        for c in result.cluster_table:
+            mni = c.get("peak_coords_mni", c["peak_coords"])
+            click.echo(
+                f"\n  Cluster {c['label']}: {c['size']} voxels, "
+                f"peak T={c['peak_value']:.3f} at MNI ({mni[0]:.0f}, {mni[1]:.0f}, {mni[2]:.0f})"
+            )
+            peak_atlas = c.get("peak_atlas", {})
+            peak_parts = [f"{k}: {v}" for k, v in peak_atlas.items() if v != "\u2014"]
+            if peak_parts:
+                click.echo(f"    Peak location:  {' | '.join(peak_parts)}")
+            for atlas_name, regions in c.get("atlas_regions", {}).items():
+                if regions:
+                    short = atlas_name.replace("HarvardOxford-", "HO-")
+                    click.echo(f"    {short}:")
+                    for r in regions:
+                        click.echo(f"       {r['pct']:5.1f}%  {r['name']} ({r['voxels']} voxels)")

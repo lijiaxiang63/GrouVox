@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,6 +22,8 @@ class FDRResult:
     p_threshold: float
     n_significant: int
     thresholded_map: np.ndarray
+    n_clusters: int = 0
+    cluster_table: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -98,7 +101,10 @@ def fdr_correction(
     if not np.any(below):
         thresholded = np.zeros_like(data)
         _save_fdr_output(thresholded, affine, header, stat_path)
-        return FDRResult(p_threshold=0.0, n_significant=0, thresholded_map=thresholded)
+        return FDRResult(
+            p_threshold=0.0, n_significant=0, thresholded_map=thresholded,
+            n_clusters=0, cluster_table=[],
+        )
 
     k_max = np.max(np.where(below)[0])
     p_threshold = sorted_p[k_max]
@@ -112,10 +118,38 @@ def fdr_correction(
 
     _save_fdr_output(thresholded, affine, header, stat_path)
 
+    # Cluster identification
+    labeled, n_labels = ndimage.label(sig_mask, structure=_STRUCT_26)
+    cluster_table: list[dict] = []
+    for label_id in range(1, n_labels + 1):
+        cluster_mask = labeled == label_id
+        size = int(cluster_mask.sum())
+        cluster_t = np.abs(data[cluster_mask])
+        peak_idx = np.argmax(cluster_t)
+        peak_coords = np.array(np.where(cluster_mask)).T[peak_idx]
+        peak_val = data[cluster_mask][peak_idx]
+        cluster_table.append({
+            "label": label_id,
+            "size": size,
+            "peak_value": float(peak_val),
+            "peak_coords": tuple(int(c) for c in peak_coords),
+        })
+    cluster_table.sort(key=lambda c: c["size"], reverse=True)
+
+    from grouvox.atlas import annotate_clusters
+
+    annotate_clusters(cluster_table, affine, data.shape, labeled)
+    _write_cluster_csv(
+        cluster_table,
+        stat_path.parent / f"ClusterReport_FDR_{_csv_stem(stat_path)}.csv",
+    )
+
     return FDRResult(
         p_threshold=float(p_threshold),
         n_significant=int(significant.sum()),
         thresholded_map=thresholded,
+        n_clusters=n_labels,
+        cluster_table=cluster_table,
     )
 
 
@@ -204,10 +238,22 @@ def grf_correction(
 
     cluster_table.sort(key=lambda c: c["size"], reverse=True)
 
+    # Atlas annotation
+    surviving_mask = thresholded_z != 0
+    anno_labeled, _ = ndimage.label(surviving_mask, structure=_STRUCT_26)
+    for cluster in cluster_table:
+        peak = cluster["peak_coords"]
+        cluster["label"] = int(anno_labeled[peak])
+
+    from grouvox.atlas import annotate_clusters
+
+    annotate_clusters(cluster_table, affine, t_data.shape, anno_labeled)
+
     parent = stat_path.parent
     name = stat_path.name
     save_nifti(thresholded_z, affine, header, parent / f"Z_ClusterThresholded_{name}")
     save_nifti(thresholded_t, affine, header, parent / f"ClusterThresholded_{name}")
+    _write_cluster_csv(cluster_table, parent / f"ClusterReport_{_csv_stem(stat_path)}.csv")
 
     return GRFResult(
         z_threshold=float(z_thr),
@@ -291,3 +337,56 @@ def _threshold_tail(
             })
 
     return (z_out, t_out), table
+
+
+def _csv_stem(stat_path: Path) -> str:
+    """Strip .nii or .nii.gz to get the base name."""
+    name = stat_path.name
+    if name.endswith(".nii.gz"):
+        return name[:-7]
+    if name.endswith(".nii"):
+        return name[:-4]
+    return stat_path.stem
+
+
+def _write_cluster_csv(cluster_table: list[dict], path: Path) -> None:
+    """Write cluster report CSV — one row per cluster."""
+    if not cluster_table:
+        return
+
+    fieldnames = [
+        "Cluster", "Size", "PeakZ", "MNI_X", "MNI_Y", "MNI_Z",
+        "AAL_Peak", "AAL_Regions",
+        "HO_Cort_Peak", "HO_Cort_Regions",
+        "HO_Sub_Peak", "HO_Sub_Regions",
+    ]
+    atlas_keys = [
+        ("AAL", "AAL_Peak", "AAL_Regions"),
+        ("HarvardOxford-cortical", "HO_Cort_Peak", "HO_Cort_Regions"),
+        ("HarvardOxford-subcortical", "HO_Sub_Peak", "HO_Sub_Regions"),
+    ]
+
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for i, c in enumerate(cluster_table, 1):
+            mni = c.get("peak_coords_mni", (0, 0, 0))
+            row = {
+                "Cluster": i,
+                "Size": c["size"],
+                "PeakZ": f"{c['peak_value']:.3f}",
+                "MNI_X": mni[0],
+                "MNI_Y": mni[1],
+                "MNI_Z": mni[2],
+            }
+            for atlas_name, peak_col, regions_col in atlas_keys:
+                peak_atlas = c.get("peak_atlas", {})
+                row[peak_col] = peak_atlas.get(atlas_name, "\u2014")
+                regions = c.get("atlas_regions", {}).get(atlas_name, [])
+                if regions:
+                    row[regions_col] = "; ".join(
+                        f"{r['name']}({r['pct']}%)" for r in regions
+                    )
+                else:
+                    row[regions_col] = "\u2014"
+            writer.writerow(row)

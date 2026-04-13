@@ -5,6 +5,7 @@ from grouvox.glm import ols_fit, compute_contrast, OLSResult
 from grouvox.correction import grf_correction, fdr_correction, GRFResult, FDRResult
 from grouvox.smoothness import estimate_smoothness, SmoothnessResult
 from grouvox.io import load_images, load_mask, save_nifti
+from grouvox.atlas import annotate_clusters, load_atlas
 
 __all__ = [
     "two_sample_ttest",
@@ -21,4 +22,6 @@ __all__ = [
     "load_images",
     "load_mask",
     "save_nifti",
+    "annotate_clusters",
+    "load_atlas",
 ]

@@ -238,9 +238,16 @@ def grf_correction(
 
     cluster_table.sort(key=lambda c: c["size"], reverse=True)
 
-    # Atlas annotation
-    surviving_mask = thresholded_z != 0
-    anno_labeled, _ = ndimage.label(surviving_mask, structure=_STRUCT_26)
+    # Atlas annotation — label positive and negative tails separately so
+    # that touching opposite-sign clusters keep distinct labels.
+    pos_mask = thresholded_z > 0
+    neg_mask = thresholded_z < 0
+    anno_labeled = np.zeros(thresholded_z.shape, dtype=int)
+    pos_labeled, n_pos = ndimage.label(pos_mask, structure=_STRUCT_26)
+    anno_labeled[pos_mask] = pos_labeled[pos_mask]
+    if neg_mask.any():
+        neg_labeled, _ = ndimage.label(neg_mask, structure=_STRUCT_26)
+        anno_labeled[neg_mask] = neg_labeled[neg_mask] + n_pos
     for cluster in cluster_table:
         peak = cluster["peak_coords"]
         cluster["label"] = int(anno_labeled[peak])

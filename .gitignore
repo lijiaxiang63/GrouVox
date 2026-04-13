@@ -4,8 +4,6 @@ __pycache__/
 dist/
 build/
 .venv/
-*.nii
-*.nii.gz
 .pytest_cache/
 uv.lock
 .DS_Store

@@ -104,12 +104,19 @@ def resample_atlas_to_stat(
     aj = np.rint(atlas_coords[1]).astype(int)
     ak = np.rint(atlas_coords[2]).astype(int)
 
+    in_bounds = (
+        (ai >= 0) & (ai < atlas_data.shape[0])
+        & (aj >= 0) & (aj < atlas_data.shape[1])
+        & (ak >= 0) & (ak < atlas_data.shape[2])
+    )
+
     np.clip(ai, 0, atlas_data.shape[0] - 1, out=ai)
     np.clip(aj, 0, atlas_data.shape[1] - 1, out=aj)
     np.clip(ak, 0, atlas_data.shape[2] - 1, out=ak)
 
-    resampled = atlas_data[ai, aj, ak].reshape(stat_shape)
-    return resampled
+    resampled = atlas_data[ai, aj, ak]
+    resampled[~in_bounds] = 0
+    return resampled.reshape(stat_shape)
 
 
 def label_peak(

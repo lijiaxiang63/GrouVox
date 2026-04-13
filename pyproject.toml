@@ -21,10 +21,18 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/grouvox"]
 
+[tool.hatch.build.targets.sdist]
+include = ["src/grouvox"]
+
 [tool.hatch.build.targets.wheel.force-include]
 "src/grouvox/atlases/aal.nii.gz" = "grouvox/atlases/aal.nii.gz"
 "src/grouvox/atlases/ho_cort.nii.gz" = "grouvox/atlases/ho_cort.nii.gz"
 "src/grouvox/atlases/ho_sub.nii.gz" = "grouvox/atlases/ho_sub.nii.gz"
+
+[tool.hatch.build.targets.sdist.force-include]
+"src/grouvox/atlases/aal.nii.gz" = "src/grouvox/atlases/aal.nii.gz"
+"src/grouvox/atlases/ho_cort.nii.gz" = "src/grouvox/atlases/ho_cort.nii.gz"
+"src/grouvox/atlases/ho_sub.nii.gz" = "src/grouvox/atlases/ho_sub.nii.gz"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

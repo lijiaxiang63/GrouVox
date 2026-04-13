@@ -163,6 +163,26 @@ class TestGRFCorrection:
         assert result.thresholded_t_map[8, 8, 8] > 0
         assert result.thresholded_t_map[21, 21, 21] < 0
 
+    def test_grf_two_tailed_touching_opposite_sign_clusters_keep_distinct_labels(self, tmp_path):
+        shape = (5, 5, 5)
+        data = np.zeros(shape, dtype=np.float32)
+        data[2, 2, 2] = 8.0
+        data[2, 2, 3] = -8.0
+
+        stat_path = _make_stat_nifti(data, tmp_path, dof=28, dlh=100.0)
+        mask_path = _make_mask(shape, tmp_path)
+
+        result = grf_correction(
+            stat_path, mask_path, voxel_p=0.05, cluster_p=0.99,
+            two_tailed=True,
+        )
+
+        assert result.n_clusters == 2
+        assert len(result.cluster_table) == 2
+        assert len({c["label"] for c in result.cluster_table}) == 2
+        peak_values = sorted(c["peak_value"] for c in result.cluster_table)
+        assert peak_values[0] < 0 < peak_values[1]
+
     def test_grf_cluster_table(self, tmp_path):
         shape = (30, 30, 30)
         data = np.zeros(shape, dtype=np.float32)

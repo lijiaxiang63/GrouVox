@@ -1,6 +1,6 @@
 [project]
 name = "grouvox"
-version = "0.1.1"
+version = "0.1.2"
 description = "Voxel-wise group-level statistical analysis for neuroimaging"
 requires-python = ">=3.10"
 dependencies = [

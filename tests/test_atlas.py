@@ -59,6 +59,24 @@ class TestResampleAtlas:
         # Voxel (1,1,1) in stat → world (2,2,2) → atlas voxel (2,2,2) → label 2
         assert result[1, 1, 1] == 2
 
+    def test_out_of_bounds_resample_returns_background(self):
+        atlas_data = np.zeros((2, 2, 2), dtype=np.int32)
+        atlas_data[1, 1, 1] = 9
+        atlas_affine = np.eye(4)
+
+        stat_shape = (1, 1, 1)
+        stat_affine = np.array([
+            [1.0, 0.0, 0.0, 10.0],
+            [0.0, 1.0, 0.0, 10.0],
+            [0.0, 0.0, 1.0, 10.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ])
+
+        result = atlas.resample_atlas_to_stat(
+            atlas_data, atlas_affine, stat_shape, stat_affine,
+        )
+        assert result[0, 0, 0] == 0
+
 
 class TestLabelPeak:
     def test_peak_in_region(self):

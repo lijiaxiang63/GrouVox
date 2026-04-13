@@ -132,15 +132,62 @@ Responsibilities:
 4. **`label_cluster(cluster_mask, affine, atlas_data, atlas_labels)`**: return a list of `{"name", "voxels", "pct"}` dicts for all atlas regions overlapping the cluster.
 5. **`annotate_clusters(cluster_table, stat_affine, stat_shape)`**: top-level function called from `grf_correction`. Adds `peak_coords_mni`, `peak_atlas`, and `atlas_regions` to each cluster dict in-place.
 
+## FDR Cluster Reporting
+
+FDR correction currently returns only `p_threshold`, `n_significant`, and `thresholded_map`. To support atlas reporting, FDR gains cluster identification on its surviving voxels.
+
+### Process
+
+1. After FDR thresholding, form connected components (26-connectivity, same as GRF) on the surviving voxel mask.
+2. Build a `cluster_table` with the same structure as GRF (label, size, peak_value, peak_coords, peak_coords_mni, peak_atlas, atlas_regions). Peak is the voxel with max |T| within each cluster.
+3. Call `annotate_clusters()` to add atlas information.
+
+### Enhanced `FDRResult`
+
+```python
+@dataclass
+class FDRResult:
+    p_threshold: float
+    n_significant: int
+    thresholded_map: np.ndarray
+    n_clusters: int                          # NEW
+    cluster_table: list[dict]                # NEW (same format as GRFResult)
+```
+
+### CSV Output
+
+Saved as `ClusterReport_FDR_{stat_name}.csv` with the same one-row-per-cluster format as GRF.
+
+### CLI Output (FDR)
+
+```
+FDR correction applied (q=0.05):
+  P threshold: 0.003421
+  Significant voxels: 1247
+  Clusters: 4
+
+  Cluster 1: 823 voxels, peak T=5.120 at MNI (-34, -22, 48)
+    Peak location:  AAL: Postcentral_L | HO-cort: Postcentral Gyrus (L)
+    AAL:
+       72.3%  Postcentral_L (595 voxels)
+       27.7%  Precentral_L (228 voxels)
+
+  Cluster 2: 312 voxels, peak T=4.210 at MNI (8, -62, 30)
+    ...
+```
+
 ## Integration Points
 
 ### `correction.py`
 
-After `cluster_table` is built (line ~205), call `annotate_clusters(cluster_table, affine, t_data.shape)`. The atlas annotation is always performed (atlases are bundled, lightweight).
+- **GRF**: After `cluster_table` is built (line ~205), call `annotate_clusters(cluster_table, affine, t_data.shape)`.
+- **FDR**: After thresholding, run 26-connectivity labeling on surviving voxels, build `cluster_table`, then call `annotate_clusters()`. Add `n_clusters` and `cluster_table` to `FDRResult`.
+
+Atlas annotation is always performed (atlases are bundled, lightweight).
 
 ### `cli.py`
 
-Update the `correct` command's GRF output section to:
+Update both GRF and FDR output sections to:
 - Print MNI coordinates instead of voxel coordinates.
 - Print peak atlas labels.
 - Print per-atlas region breakdown.

@@ -70,13 +70,16 @@ def _compute_vminmax(
 ) -> list[float]:
     """Derive colorbar bounds from projected vertex data."""
     finite = values[np.isfinite(values) & (values != 0)]
-    if finite.size == 0:
-        return [0.0, 1.0]
-
-    data_min, data_max = float(finite.min()), float(finite.max())
-
     if vmin is not None and vmax is not None:
         return [vmin, vmax]
+
+    if finite.size == 0:
+        return [
+            vmin if vmin is not None else 0.0,
+            vmax if vmax is not None else 1.0,
+        ]
+
+    data_min, data_max = float(finite.min()), float(finite.max())
     if symmetric and data_min < 0 < data_max:
         bound = vmax if vmax is not None else max(abs(data_min), abs(data_max))
         return [-bound, bound]
@@ -166,8 +169,12 @@ def _project_vol2subcortical(
         elif summary == "peak":
             idx = np.argmax(np.abs(nonzero))
             result[name] = float(nonzero[idx])
-        else:
+        elif summary == "mean":
             result[name] = float(nonzero.mean())
+        else:
+            raise ValueError(
+                f"Unknown summary {summary!r}. Choose 'peak' or 'mean'."
+            )
 
     return result
 

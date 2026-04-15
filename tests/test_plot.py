@@ -11,6 +11,7 @@ from grouvox.plot import (
     VIEW_PRESETS,
     _compute_vminmax,
     _infer_layout,
+    _project_vol2subcortical,
     _resolve_views,
     plot_brain,
     plot_subcortical,
@@ -103,6 +104,14 @@ class TestComputeVminmax:
     def test_all_zero(self):
         vals = np.array([0.0, 0.0])
         assert _compute_vminmax(vals, None, None, symmetric=True) == [0.0, 1.0]
+
+    def test_empty_with_explicit_bounds(self):
+        vals = np.array([0.0, np.nan])
+        assert _compute_vminmax(vals, -5, 5, symmetric=True) == [-5, 5]
+
+    def test_empty_with_partial_vmax(self):
+        vals = np.array([0.0, 0.0])
+        assert _compute_vminmax(vals, None, 4.0, symmetric=True) == [0.0, 4.0]
 
 
 class TestViewPresets:
@@ -224,6 +233,11 @@ class TestPlotSubcortical:
 
         mock_proj.assert_called_once()
         assert mock_proj.call_args[1]["summary"] == "mean"
+
+    def test_invalid_summary_raises(self, tmp_nifti_factory):
+        nii = tmp_nifti_factory(np.ones((5, 5, 5)), "stat.nii.gz")
+        with pytest.raises(ValueError, match="Unknown summary"):
+            _project_vol2subcortical(str(nii), summary="bogus")
 
 
 # ---------------------------------------------------------------------------

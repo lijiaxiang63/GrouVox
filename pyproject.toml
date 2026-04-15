@@ -11,6 +11,11 @@ dependencies = [
     "click>=8.0",
 ]
 
+[project.optional-dependencies]
+plot = [
+    "yabplot>=0.4.0",
+]
+
 [project.scripts]
 grouvox = "grouvox.cli:main"
 

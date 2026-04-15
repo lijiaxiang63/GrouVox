@@ -45,6 +45,91 @@ def ttest2(group1, group2, output, mask, covariates, contrast):
     click.echo(f"FWHM: {result.fwhm[0]:.2f} x {result.fwhm[1]:.2f} x {result.fwhm[2]:.2f} mm")
 
 
+def _parse_views(views_str):
+    """Resolve --views CLI string into a preset name or explicit list."""
+    from grouvox.plot import VIEW_PRESETS
+    if views_str in VIEW_PRESETS:
+        return views_str
+    return [v.strip() for v in views_str.split(",")]
+
+
+@main.command()
+@click.option("--input", "input_path", required=True, type=click.Path(exists=True),
+              help="NIfTI statistical map to plot (T-map, Z-map, or thresholded map).")
+@click.option("--output", default=None, type=click.Path(),
+              help="Save figure to this path (e.g., results.png). If omitted, show interactively.")
+@click.option("--cmap", default="coolwarm", help="Colormap name (default: coolwarm).")
+@click.option("--vmin", default=None, type=float, help="Colorbar minimum.")
+@click.option("--vmax", default=None, type=float, help="Colorbar maximum.")
+@click.option("--views", default="default",
+              help="View preset (default, lateral, medial, all, dorsal) or comma-separated view names.")
+@click.option("--surface", default="midthickness", help="Surface mesh (default: midthickness).")
+@click.option("--style", default="default",
+              help="Lighting style: default, matte, sculpted, glossy, flat.")
+@click.option("--no-symmetric", is_flag=True, default=False,
+              help="Disable symmetric colorbar (by default, colorbar is mirrored around zero).")
+def plot(input_path, output, cmap, vmin, vmax, views, surface, style, no_symmetric):
+    """Plot a statistical map on the cortical surface using yabplot."""
+    from grouvox.plot import plot_brain
+
+    plot_brain(
+        nifti_path=input_path,
+        output=output,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+        views=_parse_views(views),
+        surface=surface,
+        style=style,
+        symmetric_cbar=not no_symmetric,
+    )
+
+    if output:
+        click.echo(f"Figure saved: {output}")
+    else:
+        click.echo("Interactive viewer closed.")
+
+
+@main.command("plot-subcortical")
+@click.option("--input", "input_path", required=True, type=click.Path(exists=True),
+              help="NIfTI statistical map to plot.")
+@click.option("--output", default=None, type=click.Path(),
+              help="Save figure to this path. If omitted, show interactively.")
+@click.option("--cmap", default="coolwarm", help="Colormap name (default: coolwarm).")
+@click.option("--vmin", default=None, type=float, help="Colorbar minimum.")
+@click.option("--vmax", default=None, type=float, help="Colorbar maximum.")
+@click.option("--views", default="default",
+              help="View preset or comma-separated view names.")
+@click.option("--surface", default="midthickness", help="Context cortical mesh (default: midthickness).")
+@click.option("--style", default="default",
+              help="Lighting style: default, matte, sculpted, glossy, flat.")
+@click.option("--no-symmetric", is_flag=True, default=False,
+              help="Disable symmetric colorbar.")
+@click.option("--summary", default="peak", type=click.Choice(["peak", "mean"]),
+              help="Per-structure summary: peak (max abs) or mean (default: peak).")
+def plot_sub(input_path, output, cmap, vmin, vmax, views, surface, style, no_symmetric, summary):
+    """Plot a statistical map on subcortical structures using yabplot."""
+    from grouvox.plot import plot_subcortical
+
+    plot_subcortical(
+        nifti_path=input_path,
+        output=output,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+        views=_parse_views(views),
+        surface=surface,
+        style=style,
+        symmetric_cbar=not no_symmetric,
+        summary=summary,
+    )
+
+    if output:
+        click.echo(f"Figure saved: {output}")
+    else:
+        click.echo("Interactive viewer closed.")
+
+
 @main.command()
 @click.option("--input", "input_path", required=True, type=click.Path(exists=True),
               help="T-statistic NIfTI file from ttest2.")

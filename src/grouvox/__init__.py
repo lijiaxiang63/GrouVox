@@ -6,6 +6,7 @@ from grouvox.correction import grf_correction, fdr_correction, GRFResult, FDRRes
 from grouvox.smoothness import estimate_smoothness, SmoothnessResult
 from grouvox.io import load_images, load_mask, save_nifti
 from grouvox.atlas import annotate_clusters, load_atlas
+from grouvox.plot import plot_brain, plot_subcortical  # yabplot is optional; raises ImportError on use
 
 __all__ = [
     "two_sample_ttest",
@@ -24,4 +25,6 @@ __all__ = [
     "save_nifti",
     "annotate_clusters",
     "load_atlas",
+    "plot_brain",
+    "plot_subcortical",
 ]

@@ -1,6 +1,7 @@
 """GrouVox: Voxel-wise group-level statistical analysis for neuroimaging."""
 
 from grouvox.ttest import two_sample_ttest, TTestResult
+from grouvox.regression import regression, RegressionResult
 from grouvox.glm import ols_fit, compute_contrast, OLSResult
 from grouvox.correction import grf_correction, fdr_correction, GRFResult, FDRResult
 from grouvox.smoothness import estimate_smoothness, SmoothnessResult
@@ -11,6 +12,8 @@ from grouvox.plot import plot_brain, plot_subcortical  # yabplot is optional; ra
 __all__ = [
     "two_sample_ttest",
     "TTestResult",
+    "regression",
+    "RegressionResult",
     "ols_fit",
     "compute_contrast",
     "OLSResult",

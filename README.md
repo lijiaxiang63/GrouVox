@@ -2,7 +2,7 @@
 
 Voxel-wise group-level statistical analysis for neuroimaging data.
 
-GrouVox performs two-sample t-tests on NIfTI brain images with optional covariates (age, sex, etc.), outputs T-statistic maps, and applies multiple comparison correction using Gaussian Random Field (GRF) theory or False Discovery Rate (FDR).
+GrouVox performs two-sample t-tests and voxel-wise regression on NIfTI brain images with optional covariates (age, sex, etc.), outputs T-statistic maps, and applies multiple comparison correction using Gaussian Random Field (GRF) theory or False Discovery Rate (FDR).
 
 ## Installation
 
@@ -31,6 +31,15 @@ result = grouvox.two_sample_ttest(
 )
 
 print(f"DOF: {result.dof}, FWHM: {result.fwhm}")
+
+# Voxel-wise regression: image ~ predictor + covariates
+reg_result = grouvox.regression(
+    images="data/subjects/",
+    predictor="predictor.csv",   # single-column CSV, one value per subject
+    output="results/regression",
+    mask="brain_mask.nii.gz",
+    covariates="covariates.csv",  # optional nuisance regressors
+)
 
 # GRF cluster-level correction
 grf_result = grouvox.grf_correction(
@@ -76,6 +85,14 @@ grouvox ttest2 \
     --covariates covariates.csv \
     --contrast 1 -1
 
+# Voxel-wise regression: image ~ predictor + covariates
+grouvox regress \
+    --images data/subjects/ \
+    --predictor predictor.csv \
+    --covariates covariates.csv \
+    --mask brain_mask.nii.gz \
+    --output results/regression
+
 # GRF correction
 grouvox correct \
     --input results/group_comparison_T.nii.gz \
@@ -103,7 +120,7 @@ grouvox correct \
 
 ## Covariate File Format
 
-A CSV file where each row is a subject (group 1 first, then group 2) and each column is a covariate:
+A CSV file where each row is a subject (for `ttest2`: group 1 first, then group 2; for `regress`: same order as the images) and each column is a covariate:
 
 ```csv
 age,sex
@@ -113,13 +130,25 @@ age,sex
 ...
 ```
 
+### Predictor File Format (regression)
+
+A single-column CSV giving the continuous variable of interest, one value per subject in the same order as the images:
+
+```csv
+score
+12.4
+9.8
+14.1
+...
+```
+
 ## Output Files
 
-### T-test outputs
+### T-test / regression outputs
 
 | File | Description |
 |------|-------------|
-| `{output}_T.nii.gz` | T-statistic map (from contrast) |
+| `{output}_T.nii.gz` | T-statistic map (from contrast, or predictor slope for regression) |
 | `{output}_beta.nii.gz` | Beta coefficients (4D: one volume per regressor) |
 | `{output}_cohen_f2.nii.gz` | Cohen's f² effect size map |
 
@@ -142,7 +171,7 @@ age,sex
 
 ### Design Matrix
 
-Uses a cell-means parameterization:
+Two-sample t-test uses a cell-means parameterization:
 
 ```
 X = [G1, G2, Cov1, Cov2, ...]
@@ -151,6 +180,14 @@ X = [G1, G2, Cov1, Cov2, ...]
 - `G1`: indicator for group 1 (1 for group 1, 0 for group 2)
 - `G2`: indicator for group 2
 - Contrast `[1, -1]` tests group 1 > group 2
+
+Regression uses an intercept + predictor parameterization:
+
+```
+X = [1, predictor, Cov1, Cov2, ...]
+```
+
+- The T-map tests the predictor slope (contrast `[0, 1, 0, ...]`), i.e. whether voxel values covary with the predictor after accounting for covariates.
 
 ### GRF Correction
 

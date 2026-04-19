@@ -45,6 +45,34 @@ def ttest2(group1, group2, output, mask, covariates, contrast):
     click.echo(f"FWHM: {result.fwhm[0]:.2f} x {result.fwhm[1]:.2f} x {result.fwhm[2]:.2f} mm")
 
 
+@main.command()
+@click.option("--images", required=True, type=click.Path(exists=True),
+              help="Directory or 4D NIfTI with all subjects' images.")
+@click.option("--predictor", required=True, type=click.Path(exists=True),
+              help="CSV file with a single column of predictor values (one per subject).")
+@click.option("--output", required=True, type=click.Path(),
+              help="Output path prefix (e.g., results/regression).")
+@click.option("--mask", default=None, type=click.Path(exists=True),
+              help="Brain mask NIfTI file.")
+@click.option("--covariates", default=None, type=click.Path(exists=True),
+              help="CSV file with covariates (rows=subjects, same order as images).")
+def regress(images, predictor, output, mask, covariates):
+    """Run a voxel-wise regression: image ~ predictor + covariates."""
+    from grouvox.regression import regression
+
+    result = regression(
+        images=images,
+        predictor=predictor,
+        output=output,
+        mask=mask,
+        covariates=covariates,
+    )
+
+    click.echo(f"T-map saved: {output}_T.nii.gz")
+    click.echo(f"DOF: {result.dof}")
+    click.echo(f"FWHM: {result.fwhm[0]:.2f} x {result.fwhm[1]:.2f} x {result.fwhm[2]:.2f} mm")
+
+
 def _parse_views(views_str):
     """Resolve --views CLI string into a preset name or explicit list."""
     from grouvox.plot import VIEW_PRESETS

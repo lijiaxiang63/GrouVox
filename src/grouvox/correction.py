@@ -276,7 +276,12 @@ def _t_to_z(t_data: np.ndarray, dof: float) -> np.ndarray:
     """Convert T-statistic to Z-score, preserving sign."""
     p = stats.t.sf(np.abs(t_data), dof)
     p = np.clip(p, 1e-300, 1.0 - 1e-15)
-    z = stats.norm.ppf(1.0 - p)
+    # isf(p), not ppf(1 - p): for p below ~1e-16 the subtraction rounds to
+    # exactly 1.0 in double precision and ppf returns +inf, so any strongly
+    # significant peak (e.g. T=14.2 at dof=267 -> p=7e-35) came out as inf.
+    # isf is the numerically stable upper-tail inverse; it saturates at
+    # z=37.05 for the 1e-300 clip instead of blowing up.
+    z = stats.norm.isf(p)
     return z * np.sign(t_data)
 
 

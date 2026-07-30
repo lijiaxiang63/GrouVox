@@ -234,3 +234,27 @@ class TestGRFCorrection:
         assert "Cluster" in rows[0]
         assert "AAL_Peak" in rows[0]
         assert "HO_Cort_Peak" in rows[0]
+
+    def test_grf_large_t_stays_finite(self, tmp_path):
+        """A strongly significant peak must not convert to an infinite Z.
+
+        Regression: _t_to_z used norm.ppf(1 - p).  For p below ~1e-16 the
+        subtraction rounds to exactly 1.0 in double precision, so ppf returned
+        +inf.  T=14.2 at dof=267 gives p=7e-35 -- an ordinary peak in a decent
+        group study -- and its reported peak Z came out as inf, which also
+        propagated into the saved Z-map.
+        """
+        shape = (30, 30, 30)
+        data = np.zeros(shape, dtype=np.float32)
+        data[10:20, 10:20, 10:20] = 14.2
+        stat_path = _make_stat_nifti(data, tmp_path, dof=267, dlh=0.005)
+        mask_path = _make_mask(shape, tmp_path)
+
+        result = grf_correction(stat_path, mask_path, voxel_p=0.001,
+                                cluster_p=0.05, two_tailed=False)
+
+        assert np.isfinite(result.thresholded_z_map).all()
+        assert result.n_clusters == 1
+        peak_z = result.cluster_table[0]["peak_value"]
+        assert np.isfinite(peak_z)
+        assert 10.0 < peak_z < 15.0     # exact value 12.26 for T=14.2, dof=267

@@ -10,7 +10,7 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 from scipy import ndimage, stats
-from scipy.special import gamma
+from scipy.special import betaln, gamma, hyp2f1, ndtri_exp
 
 from grouvox.io import load_mask, save_nifti
 from grouvox.smoothness import estimate_smoothness_from_map
@@ -197,8 +197,7 @@ def grf_correction(
         mask = np.ones(t_data.shape, dtype=bool)
     n_voxels = int(mask.sum())
 
-    z_data = _t_to_z(t_data, dof)
-    z_data = z_data * mask
+    z_data = np.where(mask, _t_to_z(t_data, dof), 0.0)
 
     if reestimate or "dlh" not in meta:
         voxel_size = np.sqrt(np.sum(affine[:3, :3] ** 2, axis=0))
@@ -272,12 +271,53 @@ def grf_correction(
     )
 
 
+# Below this log-probability ``stats.t.logsf`` (which is ``log(sf)``) loses
+# accuracy and then underflows to ``-inf``; the series in ``_t_logsf`` takes over.
+_LOGSF_SERIES_BELOW = -690.0
+
+
+def _t_logsf(abs_t: np.ndarray, dof: float) -> np.ndarray:
+    """Log of the upper tail probability ``P(T > abs_t)`` of Student's t.
+
+    Stays finite for every finite ``abs_t``, including where the tail
+    probability itself underflows double precision.
+    """
+    abs_t = np.asarray(abs_t, dtype=np.float64)
+    with np.errstate(divide="ignore"):
+        logp = np.asarray(stats.t.logsf(abs_t, dof))
+
+    far = np.isfinite(abs_t) & (logp < _LOGSF_SERIES_BELOW)
+    if np.any(far):
+        # sf(t) = I_x(dof/2, 1/2) / 2 with x = dof / (dof + t^2), and
+        # I_x(a, b) = x^a (1-x)^b / (a B(a, b)) * 2F1(a+b, 1; a+1; x).
+        # Here x is tiny, so every term is evaluated in log space.
+        a, b = dof / 2.0, 0.5
+        t_far = abs_t[far]
+        x = dof / (dof + t_far * t_far)
+        logp[far] = (
+            np.log(0.5)
+            + a * np.log(x)
+            + b * np.log1p(-x)
+            - np.log(a)
+            - betaln(a, b)
+            + np.log(hyp2f1(a + b, 1.0, a + 1.0, x))
+        )
+    return logp
+
+
 def _t_to_z(t_data: np.ndarray, dof: float) -> np.ndarray:
-    """Convert T-statistic to Z-score, preserving sign."""
-    p = stats.t.sf(np.abs(t_data), dof)
-    p = np.clip(p, 1e-300, 1.0 - 1e-15)
-    z = stats.norm.ppf(1.0 - p)
-    return z * np.sign(t_data)
+    """Convert T-statistic to Z-score, preserving sign.
+
+    Matches upper tail probabilities, ``sf_norm(|z|) = sf_t(|t|)``, in log
+    space.  Going through ``1 - p`` instead rounds to exactly 1 once p drops
+    below ~1e-16 and returns an infinite Z for strong effects.
+    """
+    t = np.asarray(t_data, dtype=np.float64)
+    logp = _t_logsf(np.abs(t), dof)
+    # ndtri_exp(y) is the normal quantile of exp(y); by symmetry the upper
+    # tail quantile is its negative.
+    z = -ndtri_exp(logp)
+    return z * np.sign(t) + 0.0  # + 0.0 turns the -0.0 of T == 0 into 0.0
 
 
 def _grf_cluster_threshold(
@@ -331,8 +371,9 @@ def _threshold_tail(
             z_out[cluster_mask] = z_data[cluster_mask]
             t_out[cluster_mask] = t_data[cluster_mask]
 
-            cluster_z = np.abs(z_data[cluster_mask])
-            peak_idx = np.argmax(cluster_z)
+            # Locate the peak on |T|: Z is a monotone transform of it, and
+            # T is the statistic that was actually measured.
+            peak_idx = np.argmax(np.abs(t_data[cluster_mask]))
             peak_coords = np.array(np.where(cluster_mask)).T[peak_idx]
             peak_val = z_data[cluster_mask][peak_idx]
 
